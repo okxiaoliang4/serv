@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-warp = { version = "0.3", features = ["compression", "tls"]}
 tokio = { version = "1.21.2", features = ["full"] }
+axum = "0.6.1"
 clap = { version = "4.0.4", features = ["derive", "cargo"] }
+tower-http = { version = "0.3.0", features = ["fs", "trace"] }

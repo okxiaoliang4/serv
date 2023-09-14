@@ -1,5 +1,14 @@
+use axum::{
+    body::Body,
+    handler::HandlerWithoutStateExt,
+    http::{Request, StatusCode},
+    response::IntoResponse,
+    routing::{get, get_service},
+    Router,
+};
 use clap::{arg, command, Parser};
-use warp::Filter;
+use std::{io, net::SocketAddr};
+use tower_http::services::{ServeFile, ServeDir};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -11,22 +20,30 @@ struct Opts {
 
 #[tokio::main]
 async fn main() {
+    let current_dir = std::env::current_dir()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+
     let opts = Opts::parse();
+    let workdir = opts.dir.or(Some(current_dir)).unwrap();
 
-    println!("opts: {:?}", opts);
+    let compression = String::from("br");
 
-    let work_dir = match opts.dir {
-        Some(s) => s,
-        None => std::env::current_dir()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_string(),
-    };
+    dbg!(&workdir);
 
-    dbg!(&work_dir);
+    let app = Router::new()
+        .nest_service("/", get_service(ServeDir::new(workdir)).handle_error(|error: io::Error| async move {
+          (
+              StatusCode::INTERNAL_SERVER_ERROR,
+              format!("Unhandled internal error: {}", error),
+          )
+      }));
 
-    let route = warp::get().and(warp::fs::dir(work_dir));
-
-    warp::serve(route).run(([127, 0, 0, 1], 3030)).await;
+    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    axum::Server::bind(&addr)
+        .serve(app.into_make_service())
+        .await
+        .unwrap();
 }
